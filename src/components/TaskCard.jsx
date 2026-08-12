@@ -72,9 +72,9 @@ const TaskCard = ({ task, onTaskUpdated }) => {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
           <div className={`task-status-badge status-${task.status}`}>
-            {task.status === 'pending' && 'Pending'}
-            {task.status === 'in-progress' && 'In Progress'}
-            {task.status === 'completed' && 'Completed'}
+            {task.status === 'pending' && 'รอดำเนินการ'}
+            {task.status === 'in-progress' && 'กำลังดำเนินการ'}
+            {task.status === 'completed' && 'เสร็จสิ้น'}
           </div>
           {task.status === 'completed' && (
             <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1.1rem' }}>

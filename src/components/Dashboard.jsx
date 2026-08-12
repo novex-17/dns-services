@@ -70,12 +70,12 @@ const Dashboard = () => {
         <div className="kanban-column">
           <div className="column-header">
             <Clock color="var(--warning)" />
-            Pending (รอดำเนินการ)
+            รอดำเนินการ
             <span className="count">{pendingTasks.length}</span>
           </div>
           <div className="task-list">
             {pendingTasks.length === 0 ? (
-              <div className="empty-state">No pending tasks.</div>
+              <div className="empty-state">ไม่มีงานรอดำเนินการ</div>
             ) : (
               pendingTasks.map(task => (
                 <TaskCard key={task.id} task={task} onTaskUpdated={loadTasks} />
@@ -88,12 +88,12 @@ const Dashboard = () => {
         <div className="kanban-column">
           <div className="column-header">
             <PlayCircle color="var(--primary)" />
-            In Progress (กำลังดำเนินการ)
+            กำลังดำเนินการ
             <span className="count">{inProgressTasks.length}</span>
           </div>
           <div className="task-list">
             {inProgressTasks.length === 0 ? (
-              <div className="empty-state">No active tasks.</div>
+              <div className="empty-state">ไม่มีงานกำลังดำเนินการ</div>
             ) : (
               inProgressTasks.map(task => (
                 <TaskCard key={task.id} task={task} onTaskUpdated={loadTasks} />
@@ -106,12 +106,12 @@ const Dashboard = () => {
         <div className="kanban-column">
           <div className="column-header">
             <CheckCircle2 color="var(--secondary)" />
-            Completed (เสร็จสิ้น)
+            เสร็จสิ้น
             <span className="count">{completedTasks.length}</span>
           </div>
           <div className="task-list">
             {completedTasks.length === 0 ? (
-              <div className="empty-state">No completed tasks yet.</div>
+              <div className="empty-state">ยังไม่มีงานที่เสร็จสิ้น</div>
             ) : (
               completedTasks.map(task => (
                 <TaskCard key={task.id} task={task} onTaskUpdated={loadTasks} />
