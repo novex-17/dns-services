@@ -1,0 +1,95 @@
+.service-form-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.form-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.form-header h2 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.form-header p {
+  color: var(--text-muted);
+}
+
+.customer-section {
+  margin-bottom: 2rem;
+}
+
+.customer-input {
+  font-size: 1.25rem;
+  padding: 1rem 1.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.customer-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+}
+
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.category-card {
+  padding: 1.5rem;
+  background: var(--bg-surface-glass);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  transition: all var(--transition-smooth);
+}
+
+.category-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.category-title {
+  font-size: 1.25rem;
+  color: var(--text-main);
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.details-input {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  background: rgba(0,0,0,0.2);
+  border: 1px dashed var(--border);
+}
+
+.details-input:focus {
+  border-style: solid;
+}
+
+.submit-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 3rem;
+}
+
+.btn-submit {
+  padding: 1rem 3rem;
+  font-size: 1.25rem;
+  border-radius: var(--radius-full);
+}
