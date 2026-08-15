@@ -210,8 +210,233 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 0;
     transform: translateY(10px);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+}
+
+/* Caption Generator Styles */
+.generator-layout {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.settings-panel {
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.mt-3 { margin-top: 1rem; }
+.mt-4 { margin-top: 1.5rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-4 { margin-bottom: 1.5rem; }
+.w-full { width: 100%; }
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.upload-section, .result-section {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.upload-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  background-color: rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-dropzone:hover {
+  border-color: var(--primary);
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.preview-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.remove-btn:hover {
+  background: var(--danger);
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.result-body {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.result-textarea {
+  flex-grow: 1;
+  min-height: 400px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  padding: 1rem;
+  font-family: inherit;
+  font-size: 1rem;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.result-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.btn-success {
+  background-color: var(--secondary);
+  color: white;
+  box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.4);
+}
+
+.loader {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.top-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: var(--bg-surface-glass);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  border-radius: var(--radius-md);
+  color: white;
+}
+
+/* iPhone & Mobile Responsiveness Optimizations */
+@media (max-width: 768px) {
+  .top-navbar {
+    padding: 0.875rem 1rem;
+  }
+  
+  .brand h1 {
+    font-size: 1.125rem;
+  }
+
+  .generator-layout {
+    padding: 1rem 0.75rem;
+  }
+
+  .workspace-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .upload-section, .result-section {
+    padding: 1rem;
+    border-radius: var(--radius-md);
+  }
+
+  .upload-dropzone {
+    padding: 1.75rem 1rem;
+  }
+
+  .upload-dropzone h3 {
+    font-size: 1rem;
+  }
+
+  .preview-grid {
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .result-textarea {
+    min-height: 280px;
+    font-size: 0.9375rem;
+    padding: 0.875rem;
+  }
+
+  .btn {
+    padding: 0.75rem 1rem;
+    min-height: 44px; /* Optimal iOS tap target size */
+  }
+
+  .settings-panel {
+    padding: 1rem;
+    margin-bottom: 1.25rem;
   }
 }
