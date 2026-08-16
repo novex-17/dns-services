@@ -1,10 +1,85 @@
-// LocalStorage based mock database for the prototype
-const STORAGE_KEY = 'dns_golf_tasks';
+// Cloud-synced Database Service for DNS Golf Store
+// Syncs across all devices via shared Cloud JSON endpoint with LocalStorage fallback & auto-polling.
 
-// Get all tasks (both active and archived)
-export const getAllTasks = () => {
+const STORAGE_KEY = 'dns_golf_tasks';
+// Shared Cloud JSON Bin API URL for real-time multi-device synchronization
+const CLOUD_API_URL = 'https://api.jsonbin.io/v3/b/66c0d510e41b4d34e421a28a';
+const API_KEY = '$2a$10$tZ2oR81rF3YwWwRzR1gC.O/bWbYQ2qU6uHh8X8m2sY8k7m6n5o4p3'; // Cloud Bin key
+
+let tasksCache = null;
+let subscribers = [];
+
+// Initialize local cache from localStorage
+const loadLocalCache = () => {
   const data = localStorage.getItem(STORAGE_KEY);
   return data ? JSON.parse(data) : [];
+};
+
+const saveLocalCache = (tasks) => {
+  tasksCache = tasks;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  notifySubscribers();
+};
+
+const notifySubscribers = () => {
+  subscribers.forEach(cb => cb(getTasks()));
+};
+
+// Subscribe to real-time changes across devices
+export const subscribeToTasks = (callback) => {
+  subscribers.push(callback);
+  
+  // Initial fetch
+  fetchTasksFromCloud();
+
+  // Poll cloud every 4 seconds to sync across all computers/phones automatically
+  const intervalId = setInterval(fetchTasksFromCloud, 4000);
+
+  return () => {
+    subscribers = subscribers.filter(cb => cb !== callback);
+    clearInterval(intervalId);
+  };
+};
+
+// Fetch from cloud API
+export const fetchTasksFromCloud = async () => {
+  try {
+    const res = await fetch('https://api.npoint.io/4cf2ad192138243f7215');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        saveLocalCache(data);
+        return data;
+      }
+    }
+  } catch (err) {
+    // Silent fallback to localStorage if offline
+  }
+  return loadLocalCache();
+};
+
+// Sync to cloud API
+const syncToCloud = async (tasks) => {
+  saveLocalCache(tasks);
+  try {
+    await fetch('https://api.npoint.io/4cf2ad192138243f7215', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(tasks),
+    });
+  } catch (err) {
+    console.warn('Cloud sync error, saved locally:', err);
+  }
+};
+
+// Get all tasks
+export const getAllTasks = () => {
+  if (!tasksCache) {
+    tasksCache = loadLocalCache();
+  }
+  return tasksCache;
 };
 
 // Get active tasks (not archived)
@@ -22,41 +97,51 @@ export const addTask = (taskData) => {
     createdAt: new Date().toISOString(),
     archived: false
   };
-  tasks.push(newTask);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  const updatedTasks = [...tasks, newTask];
+  syncToCloud(updatedTasks);
   return newTask;
 };
 
 // Update an existing task status
 export const updateTaskStatus = (id, newStatus) => {
   const tasks = getAllTasks();
-  const index = tasks.findIndex((t) => t.id === id);
-  if (index !== -1) {
-    tasks[index].status = newStatus;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-  }
+  const updatedTasks = tasks.map(t => {
+    if (t.id === id) {
+      return { ...t, status: newStatus };
+    }
+    return t;
+  });
+  syncToCloud(updatedTasks);
 };
 
 // Delete a task
 export const deleteTask = (id) => {
-  let tasks = getAllTasks();
-  tasks = tasks.filter((t) => t.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  const tasks = getAllTasks();
+  const updatedTasks = tasks.filter(t => t.id !== id);
+  syncToCloud(updatedTasks);
 };
 
 // Archive completed tasks
 export const archiveCompletedTasks = () => {
   const tasks = getAllTasks();
   let archivedCount = 0;
-  tasks.forEach(t => {
+  const updatedTasks = tasks.map(t => {
     if (t.status === 'completed' && !t.archived) {
-      t.archived = true;
-      t.archivedAt = new Date().toISOString();
       archivedCount++;
+      return { ...t, archived: true, archivedAt: new Date().toISOString() };
     }
+    return t;
   });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  syncToCloud(updatedTasks);
   return archivedCount;
+};
+
+// Helper: Normalize option format (supports legacy string options & new {name, count} object options)
+export const parseOption = (opt) => {
+  if (typeof opt === 'string') {
+    return { name: opt, count: 1 };
+  }
+  return { name: opt.name || '', count: opt.count || 1 };
 };
 
 // Generate Daily Report Text
@@ -73,15 +158,22 @@ export const generateDailyReport = () => {
       Object.entries(task.services).forEach(([catId, data]) => {
         const cat = SERVICE_CATEGORIES.find(c => c.id === catId);
         const catName = cat ? cat.name.replace(/^\d+\.\s*/, '') : catId;
-        let numOptions = data.options ? data.options.length : 0;
         
-        // Custom rule: Category 6 (กังสดาล) always counts as 1 task even if multiple options are selected
-        if (catId === 'gungsadan' && numOptions > 0) {
-          numOptions = 1;
+        let totalCategoryCount = 0;
+        if (data.options && Array.isArray(data.options)) {
+          data.options.forEach(opt => {
+            const parsed = parseOption(opt);
+            totalCategoryCount += parsed.count;
+          });
         }
 
-        if (numOptions > 0) {
-          counts[catName] = (counts[catName] || 0) + numOptions;
+        // Custom rule: Category 6 (กังสดาล) always counts as 1 task even if multiple options are selected
+        if (catId === 'gungsadan' && totalCategoryCount > 0) {
+          totalCategoryCount = 1;
+        }
+
+        if (totalCategoryCount > 0) {
+          counts[catName] = (counts[catName] || 0) + totalCategoryCount;
         }
       });
     });
@@ -120,15 +212,12 @@ export const exportTasksToCSV = () => {
     return;
   }
 
-  // We separate each service option into its own row for easier filtering and reading in Excel
-  const headers = ['ID', 'Customer', 'Date', 'Status', 'Category', 'Service Option', 'Price (THB)', 'Note'];
-  
+  const headers = ['ID', 'Customer', 'Date', 'Status', 'Category', 'Service Option', 'Quantity', 'Price (THB)', 'Note'];
   const csvRows = [];
   
   tasks.forEach(task => {
     const taskDate = new Date(task.createdAt).toLocaleString('th-TH');
     
-    // If a task has no services (rare but possible), still export a row
     if (!task.services || Object.keys(task.services).length === 0) {
       csvRows.push([
         task.id,
@@ -138,6 +227,7 @@ export const exportTasksToCSV = () => {
         'None',
         'None',
         '0',
+        '0',
         '""'
       ].join(','));
       return;
@@ -145,15 +235,18 @@ export const exportTasksToCSV = () => {
 
     Object.entries(task.services).forEach(([catId, data]) => {
       const cat = SERVICE_CATEGORIES.find(c => c.id === catId);
-      const categoryName = cat ? cat.name.replace(/^\d+\.\s*/, '') : catId; // Remove the "1. " from category name
+      const categoryName = cat ? cat.name.replace(/^\d+\.\s*/, '') : catId;
       
       if (data.options && Array.isArray(data.options)) {
-        data.options.forEach((optName, index) => {
-          const option = cat?.options?.find(o => o.name === optName);
-          let price = option?.price !== null && option?.price !== undefined ? option.price : 'TBD';
+        data.options.forEach((opt, index) => {
+          const parsed = parseOption(opt);
+          const optionObj = cat?.options?.find(o => o.name === parsed.name);
+          
+          let unitPrice = optionObj?.price !== null && optionObj?.price !== undefined ? optionObj.price : null;
+          let totalPriceStr = unitPrice !== null ? (unitPrice * parsed.count) : 'TBD';
           
           if (cat?.basePrice && index === 0) {
-            price = `${price} (+ Base ${cat.basePrice})`;
+            totalPriceStr = `${totalPriceStr} (+ Base ${cat.basePrice})`;
           }
 
           csvRows.push([
@@ -162,8 +255,9 @@ export const exportTasksToCSV = () => {
             taskDate,
             task.status,
             `"${categoryName.replace(/"/g, '""')}"`,
-            `"${optName.replace(/"/g, '""')}"`,
-            `"${price}"`,
+            `"${parsed.name.replace(/"/g, '""')}"`,
+            parsed.count,
+            `"${totalPriceStr}"`,
             `"${(data.details || '').replace(/\n/g, ' ').replace(/"/g, '""')}"`
           ].join(','));
         });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTasks, exportTasksToCSV } from '../services/db';
+import { getTasks, exportTasksToCSV, subscribeToTasks } from '../services/db';
 import TaskCard from './TaskCard';
 import DailyReportModal from './DailyReportModal';
 import { ClipboardList, Clock, PlayCircle, CheckCircle2, Download, FileText } from 'lucide-react';
@@ -15,7 +15,10 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadTasks();
-    // In a real app with Firebase, we would set up a listener here.
+    const unsubscribe = subscribeToTasks((newTasks) => {
+      setTasks(newTasks);
+    });
+    return () => unsubscribe();
   }, []);
 
   const pendingTasks = tasks.filter(t => t.status === 'pending');

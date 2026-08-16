@@ -1,5 +1,5 @@
 import React from 'react';
-import { updateTaskStatus, deleteTask, SERVICE_CATEGORIES } from '../services/db';
+import { updateTaskStatus, deleteTask, SERVICE_CATEGORIES, parseOption } from '../services/db';
 import { User, CheckCircle2, Clock, Trash2, PlayCircle } from 'lucide-react';
 import './TaskCard.css';
 
@@ -33,26 +33,34 @@ const TaskCard = ({ task, onTaskUpdated }) => {
     let total = 0;
     let hasTBD = false;
 
-    Object.entries(task.services).forEach(([catId, data]) => {
-      const cat = SERVICE_CATEGORIES.find(c => c.id === catId);
-      let catBaseAdded = false;
+    if (task.services) {
+      Object.entries(task.services).forEach(([catId, data]) => {
+        const cat = SERVICE_CATEGORIES.find(c => c.id === catId);
+        let catBaseAdded = false;
 
-      data.options.forEach(optName => {
-        const option = cat?.options.find(o => o.name === optName);
-        if (option) {
-          if (option.price !== null) {
-            total += option.price;
-          } else {
-            hasTBD = true;
-          }
-        }
-        
-        if (cat?.basePrice && !catBaseAdded) {
-          total += cat.basePrice;
-          catBaseAdded = true;
+        if (data.options && Array.isArray(data.options)) {
+          data.options.forEach(opt => {
+            const parsed = parseOption(opt);
+            const optionObj = cat?.options?.find(o => o.name === parsed.name);
+            
+            if (optionObj) {
+              if (optionObj.price !== null && optionObj.price !== undefined) {
+                total += (optionObj.price * parsed.count);
+              } else {
+                hasTBD = true;
+              }
+            } else {
+              hasTBD = true;
+            }
+            
+            if (cat?.basePrice && !catBaseAdded) {
+              total += cat.basePrice;
+              catBaseAdded = true;
+            }
+          });
         }
       });
-    });
+    }
 
     if (hasTBD) {
       return total > 0 ? `${total.toLocaleString()}฿ + (TBD)` : 'TBD';
@@ -85,13 +93,18 @@ const TaskCard = ({ task, onTaskUpdated }) => {
       </div>
 
       <div className="task-services">
-        {Object.entries(task.services).map(([catId, data]) => (
+        {task.services && Object.entries(task.services).map(([catId, data]) => (
           <div key={catId} className="service-item">
             <div className="service-category-name">{getCategoryName(catId)}</div>
             <div className="service-options">
-              {data.options.map(opt => (
-                <span key={opt} className="service-tag">{opt}</span>
-              ))}
+              {data.options && Array.isArray(data.options) && data.options.map((opt, idx) => {
+                const parsed = parseOption(opt);
+                return (
+                  <span key={idx} className="service-tag">
+                    {parsed.name} {parsed.count > 1 ? `x${parsed.count}` : ''}
+                  </span>
+                );
+              })}
             </div>
             {data.details && (
               <span className="service-details">📝 {data.details}</span>

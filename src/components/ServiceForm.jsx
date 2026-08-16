@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SERVICE_CATEGORIES, addTask } from '../services/db';
-import { Save, User } from 'lucide-react';
+import { Save, User, Plus, Minus } from 'lucide-react';
 import './ServiceForm.css';
 
 const ServiceForm = ({ onTaskAdded }) => {
@@ -8,15 +8,39 @@ const ServiceForm = ({ onTaskAdded }) => {
   const [selectedServices, setSelectedServices] = useState({});
   const [serviceDetails, setServiceDetails] = useState({});
 
-  const handleOptionChange = (categoryId, option) => {
+  // Get current count for a category option
+  const getCount = (categoryId, optionName) => {
+    return selectedServices[categoryId]?.[optionName] || 0;
+  };
+
+  // Toggle or change quantity
+  const handleQuantityChange = (categoryId, optionName, delta) => {
     setSelectedServices(prev => {
-      const categorySelections = prev[categoryId] || [];
-      if (categorySelections.includes(option)) {
-        return { ...prev, [categoryId]: categorySelections.filter(o => o !== option) };
+      const catMap = { ...(prev[categoryId] || {}) };
+      const currentCount = catMap[optionName] || 0;
+      const newCount = Math.max(0, currentCount + delta);
+
+      if (newCount === 0) {
+        delete catMap[optionName];
       } else {
-        return { ...prev, [categoryId]: [...categorySelections, option] };
+        catMap[optionName] = newCount;
       }
+
+      return {
+        ...prev,
+        [categoryId]: catMap
+      };
     });
+  };
+
+  // Toggle checkbox directly
+  const handleCheckboxToggle = (categoryId, optionName) => {
+    const currentCount = getCount(categoryId, optionName);
+    if (currentCount > 0) {
+      handleQuantityChange(categoryId, optionName, -currentCount); // Reset to 0
+    } else {
+      handleQuantityChange(categoryId, optionName, 1); // Set to 1
+    }
   };
 
   const handleDetailsChange = (categoryId, value) => {
@@ -33,9 +57,14 @@ const ServiceForm = ({ onTaskAdded }) => {
     // Filter out empty categories
     const activeServices = {};
     Object.keys(selectedServices).forEach(key => {
-      if (selectedServices[key].length > 0) {
+      const catObj = selectedServices[key];
+      const selectedOptions = Object.entries(catObj)
+        .filter(([_, count]) => count > 0)
+        .map(([name, count]) => ({ name, count }));
+
+      if (selectedOptions.length > 0) {
         activeServices[key] = {
-          options: selectedServices[key],
+          options: selectedOptions,
           details: serviceDetails[key] || ''
         };
       }
@@ -89,43 +118,79 @@ const ServiceForm = ({ onTaskAdded }) => {
         <h3 style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>Select Services / เลือกบริการ</h3>
         
         <div className="services-grid">
-          {SERVICE_CATEGORIES.map(category => (
-            <div key={category.id} className="category-card">
-              <h4 className="category-title">{category.name}</h4>
-              <div className="options-list">
-                {category.options.map(option => (
-                  <label key={option.name} className="checkbox-container">
-                    <input
-                      type="checkbox"
-                      checked={selectedServices[category.id]?.includes(option.name) || false}
-                      onChange={() => handleOptionChange(category.id, option.name)}
+          {SERVICE_CATEGORIES.map(category => {
+            const hasSelectedOptions = Object.keys(selectedServices[category.id] || {}).length > 0;
+
+            return (
+              <div key={category.id} className="category-card">
+                <h4 className="category-title">{category.name}</h4>
+                <div className="options-list">
+                  {category.options.map(option => {
+                    const count = getCount(category.id, option.name);
+                    const isChecked = count > 0;
+
+                    return (
+                      <div key={option.name} className="option-row">
+                        <label className="checkbox-container" style={{ flexGrow: 1 }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleCheckboxToggle(category.id, option.name)}
+                          />
+                          <div className="checkmark"></div>
+                          <span className="checkbox-label">
+                            <span>{option.name}</span>
+                            {option.price !== null && option.price > 0 && (
+                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                {option.price}฿
+                              </span>
+                            )}
+                          </span>
+                        </label>
+
+                        {/* Compact Quantity (+ / -) Counter */}
+                        <div className="qty-counter">
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            onClick={() => handleQuantityChange(category.id, option.name, -1)}
+                            disabled={count === 0}
+                            style={{ opacity: count === 0 ? 0.3 : 1 }}
+                            title="Decrease quantity"
+                          >
+                            -
+                          </button>
+                          <span className={`qty-count ${count === 0 ? 'zero' : ''}`}>
+                            {count}
+                          </span>
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            onClick={() => handleQuantityChange(category.id, option.name, 1)}
+                            title="Increase quantity"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Show details input for all categories except laser if at least one option is selected */}
+                  {(category.id !== 'laser' && hasSelectedOptions) && (
+                    <textarea
+                      className="input-field details-input animate-fade-in"
+                      placeholder={category.detailsPlaceholder || "ระบุรายละเอียดเพิ่มเติม..."}
+                      value={serviceDetails[category.id] || ''}
+                      onChange={(e) => handleDetailsChange(category.id, e.target.value)}
+                      rows={3}
+                      style={{ resize: 'vertical', fontFamily: 'inherit' }}
                     />
-                    <div className="checkmark"></div>
-                    <span className="checkbox-label">
-                      <span>{option.name}</span>
-                      {option.price !== null && option.price > 0 && (
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                          {option.price}฿
-                        </span>
-                      )}
-                    </span>
-                  </label>
-                ))}
-                
-                {/* Show details input for all categories except laser if at least one option is selected */}
-                {(category.id !== 'laser' && selectedServices[category.id]?.length > 0) && (
-                  <textarea
-                    className="input-field details-input animate-fade-in"
-                    placeholder={category.detailsPlaceholder || "ระบุรายละเอียดเพิ่มเติม..."}
-                    value={serviceDetails[category.id] || ''}
-                    onChange={(e) => handleDetailsChange(category.id, e.target.value)}
-                    rows={3}
-                    style={{ resize: 'vertical', fontFamily: 'inherit' }}
-                  />
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="submit-section">
