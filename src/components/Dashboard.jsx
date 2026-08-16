@@ -10,20 +10,27 @@ const Dashboard = () => {
   const [showReport, setShowReport] = useState(false);
 
   const loadTasks = () => {
-    setTasks(getTasks());
+    try {
+      const currentTasks = getTasks();
+      setTasks(Array.isArray(currentTasks) ? currentTasks : []);
+    } catch (e) {
+      console.error('Error loading tasks:', e);
+      setTasks([]);
+    }
   };
 
   useEffect(() => {
     loadTasks();
     const unsubscribe = subscribeToTasks((newTasks) => {
-      setTasks(newTasks);
+      setTasks(Array.isArray(newTasks) ? newTasks : []);
     });
     return () => unsubscribe();
   }, []);
 
-  const pendingTasks = tasks.filter(t => t.status === 'pending');
-  const inProgressTasks = tasks.filter(t => t.status === 'in-progress');
-  const completedTasks = tasks.filter(t => t.status === 'completed');
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+  const pendingTasks = safeTasks.filter(t => t && t.status === 'pending');
+  const inProgressTasks = safeTasks.filter(t => t && t.status === 'in-progress');
+  const completedTasks = safeTasks.filter(t => t && t.status === 'completed');
 
   return (
     <div className="dashboard-container animate-fade-in">
@@ -56,7 +63,7 @@ const Dashboard = () => {
           
           <div className="stat-badge">
             <ClipboardList size={18} color="var(--primary)" />
-            Total: {tasks.length}
+            Total: {safeTasks.length}
           </div>
         </div>
       </div>
