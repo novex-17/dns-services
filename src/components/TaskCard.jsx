@@ -4,41 +4,56 @@ import { User, CheckCircle2, Clock, Trash2, PlayCircle } from 'lucide-react';
 import './TaskCard.css';
 
 const TaskCard = ({ task, onTaskUpdated }) => {
+  if (!task) return null;
+
   const getCategoryName = (id) => {
     const cat = SERVICE_CATEGORIES.find(c => c.id === id);
     return cat ? cat.name : id;
   };
 
   const handleStatusChange = (newStatus) => {
-    updateTaskStatus(task.id, newStatus);
-    onTaskUpdated();
+    if (task && task.id) {
+      updateTaskStatus(task.id, newStatus);
+      if (onTaskUpdated) onTaskUpdated();
+    }
   };
 
   const handleDelete = () => {
-    if (window.confirm(`Are you sure you want to delete the request for ${task.customer}?`)) {
-      deleteTask(task.id);
-      onTaskUpdated();
+    const custName = task?.customer || 'Unknown';
+    if (window.confirm(`Are you sure you want to delete the request for ${custName}?`)) {
+      if (task && task.id) {
+        deleteTask(task.id);
+        if (onTaskUpdated) onTaskUpdated();
+      }
     }
   };
 
   const formatDate = (isoString) => {
-    const date = new Date(isoString);
-    return new Intl.DateTimeFormat('th-TH', { 
-      dateStyle: 'medium', 
-      timeStyle: 'short' 
-    }).format(date);
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      // Check for Invalid Date
+      if (isNaN(date.getTime())) return '';
+      
+      return new Intl.DateTimeFormat('th-TH', { 
+        dateStyle: 'medium', 
+        timeStyle: 'short' 
+      }).format(date);
+    } catch (e) {
+      return '';
+    }
   };
 
   const calculatePrice = () => {
     let total = 0;
     let hasTBD = false;
 
-    if (task.services) {
+    if (task && task.services && typeof task.services === 'object') {
       Object.entries(task.services).forEach(([catId, data]) => {
         const cat = SERVICE_CATEGORIES.find(c => c.id === catId);
         let catBaseAdded = false;
 
-        if (data.options && Array.isArray(data.options)) {
+        if (data && data.options && Array.isArray(data.options)) {
           data.options.forEach(opt => {
             const parsed = parseOption(opt);
             const optionObj = cat?.options?.find(o => o.name === parsed.name);
@@ -68,23 +83,26 @@ const TaskCard = ({ task, onTaskUpdated }) => {
     return `${total.toLocaleString()}฿`;
   };
 
+  const customerName = typeof task.customer === 'string' ? task.customer : 'Unknown Customer';
+  const status = typeof task.status === 'string' ? task.status : 'pending';
+
   return (
-    <div className={`task-card ${task.status === 'completed' ? 'completed' : ''}`}>
+    <div className={`task-card ${status === 'completed' ? 'completed' : ''}`}>
       <div className="task-header">
         <div>
           <div className="task-customer">
             <User size={18} />
-            {task.customer}
+            {customerName}
           </div>
           <div className="task-date">{formatDate(task.createdAt)}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-          <div className={`task-status-badge status-${task.status}`}>
-            {task.status === 'pending' && 'รอดำเนินการ'}
-            {task.status === 'in-progress' && 'กำลังดำเนินการ'}
-            {task.status === 'completed' && 'เสร็จสิ้น'}
+          <div className={`task-status-badge status-${status}`}>
+            {status === 'pending' && 'รอดำเนินการ'}
+            {status === 'in-progress' && 'กำลังดำเนินการ'}
+            {status === 'completed' && 'เสร็จสิ้น'}
           </div>
-          {task.status === 'completed' && (
+          {status === 'completed' && (
             <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1.1rem' }}>
               Total: {calculatePrice()}
             </div>
@@ -93,11 +111,11 @@ const TaskCard = ({ task, onTaskUpdated }) => {
       </div>
 
       <div className="task-services">
-        {task.services && Object.entries(task.services).map(([catId, data]) => (
+        {task.services && typeof task.services === 'object' && Object.entries(task.services).map(([catId, data]) => (
           <div key={catId} className="service-item">
             <div className="service-category-name">{getCategoryName(catId)}</div>
             <div className="service-options">
-              {data.options && Array.isArray(data.options) && data.options.map((opt, idx) => {
+              {data && data.options && Array.isArray(data.options) && data.options.map((opt, idx) => {
                 const parsed = parseOption(opt);
                 return (
                   <span key={idx} className="service-tag">
@@ -106,7 +124,7 @@ const TaskCard = ({ task, onTaskUpdated }) => {
                 );
               })}
             </div>
-            {data.details && (
+            {data && data.details && typeof data.details === 'string' && (
               <span className="service-details">📝 {data.details}</span>
             )}
           </div>
@@ -122,7 +140,7 @@ const TaskCard = ({ task, onTaskUpdated }) => {
           <Trash2 size={16} /> Delete
         </button>
         
-        {task.status !== 'in-progress' && task.status !== 'completed' && (
+        {status !== 'in-progress' && status !== 'completed' && (
           <button 
             className="btn btn-secondary btn-small"
             style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
@@ -132,7 +150,7 @@ const TaskCard = ({ task, onTaskUpdated }) => {
           </button>
         )}
         
-        {task.status !== 'completed' && (
+        {status !== 'completed' && (
           <button 
             className="btn btn-secondary btn-small"
             style={{ borderColor: 'var(--secondary)', color: 'var(--secondary)' }}
@@ -142,7 +160,7 @@ const TaskCard = ({ task, onTaskUpdated }) => {
           </button>
         )}
         
-        {task.status === 'completed' && (
+        {status === 'completed' && (
           <button 
             className="btn btn-secondary btn-small"
             onClick={() => handleStatusChange('pending')}
