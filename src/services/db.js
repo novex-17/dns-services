@@ -1,10 +1,8 @@
 // Cloud-synced Database Service for DNS Golf Store
-// Syncs across all devices via shared Cloud JSON endpoint with LocalStorage fallback & auto-polling.
+// Real-time synchronization across all PCs, iPhones, iPads, and Android devices.
 
 const STORAGE_KEY = 'dns_golf_tasks';
-// Shared Cloud JSON Bin API URL for real-time multi-device synchronization
-const CLOUD_API_URL = 'https://api.jsonbin.io/v3/b/66c0d510e41b4d34e421a28a';
-const API_KEY = '$2a$10$tZ2oR81rF3YwWwRzR1gC.O/bWbYQ2qU6uHh8X8m2sY8k7m6n5o4p3'; // Cloud Bin key
+const CLOUD_API_URL = 'https://api.restful-api.dev/objects/ff8081819ff5b11001a008978e5028cb';
 
 let tasksCache = null;
 let subscribers = [];
@@ -32,8 +30,8 @@ export const subscribeToTasks = (callback) => {
   // Initial fetch
   fetchTasksFromCloud();
 
-  // Poll cloud every 4 seconds to sync across all computers/phones automatically
-  const intervalId = setInterval(fetchTasksFromCloud, 4000);
+  // Poll cloud API every 2.5 seconds to sync across all computers/iphones automatically
+  const intervalId = setInterval(fetchTasksFromCloud, 2500);
 
   return () => {
     subscribers = subscribers.filter(cb => cb !== callback);
@@ -44,16 +42,38 @@ export const subscribeToTasks = (callback) => {
 // Fetch from cloud API
 export const fetchTasksFromCloud = async () => {
   try {
-    const res = await fetch('https://api.npoint.io/4cf2ad192138243f7215');
+    const res = await fetch(CLOUD_API_URL, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
     if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        saveLocalCache(data);
-        return data;
+      const json = await res.json();
+      const cloudTasks = json?.data?.tasks;
+      if (Array.isArray(cloudTasks)) {
+        // If local has tasks that aren't in cloud yet, merge them
+        const localTasks = loadLocalCache();
+        let merged = [...cloudTasks];
+        let hasNewLocal = false;
+
+        localTasks.forEach(lt => {
+          if (!merged.some(ct => ct.id === lt.id)) {
+            merged.push(lt);
+            hasNewLocal = true;
+          }
+        });
+
+        if (hasNewLocal) {
+          syncToCloud(merged);
+        } else {
+          saveLocalCache(cloudTasks);
+        }
+        return merged;
       }
     }
   } catch (err) {
-    // Silent fallback to localStorage if offline
+    console.warn('Cloud fetch error, using local data:', err);
   }
   return loadLocalCache();
 };
@@ -62,12 +82,16 @@ export const fetchTasksFromCloud = async () => {
 const syncToCloud = async (tasks) => {
   saveLocalCache(tasks);
   try {
-    await fetch('https://api.npoint.io/4cf2ad192138243f7215', {
-      method: 'POST',
+    await fetch(CLOUD_API_URL, {
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
-      body: JSON.stringify(tasks),
+      body: JSON.stringify({
+        name: 'dns_golf_tasks',
+        data: { tasks }
+      }),
     });
   } catch (err) {
     console.warn('Cloud sync error, saved locally:', err);
@@ -97,7 +121,7 @@ export const addTask = (taskData) => {
     createdAt: new Date().toISOString(),
     archived: false
   };
-  const updatedTasks = [...tasks, newTask];
+  const updatedTasks = [newTask, ...tasks];
   syncToCloud(updatedTasks);
   return newTask;
 };
