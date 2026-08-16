@@ -2,7 +2,7 @@
 // Ultra-defensive implementation: Guaranteeing 100% uptime, fast load, and no blank screens.
 
 const STORAGE_KEY = 'dns_golf_tasks_v2';
-const CLOUD_API_URL = 'https://api.restful-api.dev/objects/ff8081819ff5b11001a008978e5028cb';
+const CLOUD_API_URL = '/api/sync';
 
 let tasksCache = null;
 let subscribers = [];
@@ -73,7 +73,7 @@ export const fetchTasksFromCloud = async () => {
 
     if (res.ok) {
       const json = await res.json();
-      const cloudTasks = json?.data?.tasks;
+      const cloudTasks = json?.tasks;
 
       if (Array.isArray(cloudTasks) && cloudTasks.length > 0) {
         saveLocalCache(cloudTasks);
@@ -100,15 +100,12 @@ const syncToCloud = async (tasks) => {
 
   try {
     await fetch(CLOUD_API_URL, {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        name: 'dns_golf_tasks',
-        data: { tasks: safeTasks }
-      }),
+      body: JSON.stringify({ tasks: safeTasks }),
     });
   } catch (err) {
     console.warn('Cloud sync error, saved locally:', err);
