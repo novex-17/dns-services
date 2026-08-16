@@ -1,8 +1,8 @@
 // Cloud-synced Database Service for DNS Golf Store
-// Ultra-defensive implementation: Guaranteeing 100% uptime, fast load, and no blank screens.
+// Using Firebase Realtime Database for permanent 100% reliable syncing
 
-const STORAGE_KEY = 'dns_golf_tasks_v2';
-const CLOUD_API_URL = '/api/sync';
+const STORAGE_KEY = 'dns_golf_tasks_v3';
+const CLOUD_API_URL = 'https://dns-services-96aca-default-rtdb.asia-southeast1.firebasedatabase.app/tasks.json';
 
 let tasksCache = null;
 let subscribers = [];
@@ -61,24 +61,36 @@ export const subscribeToTasks = (callback) => {
   };
 };
 
-// Fetch from cloud API safely
+// Fetch from Firebase safely (with Cache-Busting)
 export const fetchTasksFromCloud = async () => {
   try {
-    const res = await fetch(CLOUD_API_URL, {
+    const res = await fetch(`${CLOUD_API_URL}?t=${new Date().getTime()}`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
       }
     });
 
     if (res.ok) {
-      const json = await res.json();
-      const cloudTasks = json?.tasks;
+      const data = await res.json();
+      let cloudTasks = [];
+      
+      // Firebase returns an array or an object (if indices are non-sequential)
+      if (Array.isArray(data)) {
+        cloudTasks = data.filter(t => t !== null && typeof t === 'object');
+      } else if (data && typeof data === 'object') {
+        cloudTasks = Object.values(data).filter(t => t !== null && typeof t === 'object');
+      }
 
-      if (Array.isArray(cloudTasks) && cloudTasks.length > 0) {
+      // Sort by creation time descending
+      cloudTasks.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+      if (cloudTasks.length > 0) {
         saveLocalCache(cloudTasks);
         return cloudTasks;
-      } else if (Array.isArray(cloudTasks) && cloudTasks.length === 0) {
+      } else if (cloudTasks.length === 0) {
         // If cloud is empty but local has data, upload local data to cloud
         const localTasks = loadLocalCache();
         if (localTasks.length > 0) {
@@ -93,19 +105,19 @@ export const fetchTasksFromCloud = async () => {
   return loadLocalCache();
 };
 
-// Sync to cloud API safely
+// Sync to Firebase safely
 const syncToCloud = async (tasks) => {
   const safeTasks = Array.isArray(tasks) ? tasks : [];
   saveLocalCache(safeTasks);
 
   try {
     await fetch(CLOUD_API_URL, {
-      method: 'POST',
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({ tasks: safeTasks }),
+      body: JSON.stringify(safeTasks),
     });
   } catch (err) {
     console.warn('Cloud sync error, saved locally:', err);
