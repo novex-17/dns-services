@@ -3,6 +3,7 @@
 
 const STORAGE_KEY = 'dns_golf_tasks_v3';
 const CLOUD_API_URL = 'https://dns-services-96aca-default-rtdb.asia-southeast1.firebasedatabase.app/tasks.json';
+const CLOUD_API_BASE = 'https://dns-services-96aca-default-rtdb.asia-southeast1.firebasedatabase.app/tasks';
 
 let tasksCache = null;
 let subscribers = [];
@@ -91,10 +92,10 @@ export const fetchTasksFromCloud = async () => {
         saveLocalCache(cloudTasks);
         return cloudTasks;
       } else if (cloudTasks.length === 0) {
-        // If cloud is empty but local has data, upload local data to cloud
+        // If cloud is empty but local has data, upload local data to cloud individually
         const localTasks = loadLocalCache();
         if (localTasks.length > 0) {
-          syncToCloud(localTasks);
+          localTasks.forEach(task => syncSingleTaskToCloud(task));
           return localTasks;
         }
       }
@@ -105,22 +106,36 @@ export const fetchTasksFromCloud = async () => {
   return loadLocalCache();
 };
 
-// Sync to Firebase safely
-const syncToCloud = async (tasks) => {
-  const safeTasks = Array.isArray(tasks) ? tasks : [];
-  saveLocalCache(safeTasks);
+// Surgically Sync ONE specific task to Firebase (Prevents Race Conditions)
+const syncSingleTaskToCloud = async (task) => {
+  if (!task || !task.id) return;
+  saveLocalCache(getAllTasks()); 
 
   try {
-    await fetch(CLOUD_API_URL, {
+    await fetch(`${CLOUD_API_BASE}/${task.id}.json`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(safeTasks),
+      body: JSON.stringify(task),
     });
   } catch (err) {
-    console.warn('Cloud sync error, saved locally:', err);
+    console.warn('Cloud sync error for task:', err);
+  }
+};
+
+// Surgically Delete ONE specific task from Firebase
+const deleteTaskFromCloud = async (taskId) => {
+  if (!taskId) return;
+  saveLocalCache(getAllTasks());
+
+  try {
+    await fetch(`${CLOUD_API_BASE}/${taskId}.json`, {
+      method: 'DELETE',
+    });
+  } catch (err) {
+    console.warn('Cloud delete error:', err);
   }
 };
 
@@ -147,42 +162,56 @@ export const addTask = (taskData) => {
     createdAt: new Date().toISOString(),
     archived: false
   };
-  const updatedTasks = [newTask, ...tasks];
-  syncToCloud(updatedTasks);
+  tasksCache = [newTask, ...tasks];
+  syncSingleTaskToCloud(newTask); // Only upload the new task!
   return newTask;
 };
 
 // Update an existing task status
 export const updateTaskStatus = (id, newStatus) => {
   const tasks = getAllTasks();
-  const updatedTasks = tasks.map(t => {
+  let updatedTask = null;
+  
+  tasksCache = tasks.map(t => {
     if (t && t.id === id) {
-      return { ...t, status: newStatus };
+      updatedTask = { ...t, status: newStatus };
+      return updatedTask;
     }
     return t;
   });
-  syncToCloud(updatedTasks);
+  
+  if (updatedTask) {
+    syncSingleTaskToCloud(updatedTask); // Only update the changed task!
+  } else {
+    saveLocalCache(tasksCache);
+  }
 };
 
 // Delete a task
 export const deleteTask = (id) => {
   const tasks = getAllTasks();
-  const updatedTasks = tasks.filter(t => t && t.id !== id);
-  syncToCloud(updatedTasks);
+  tasksCache = tasks.filter(t => t && t.id !== id);
+  deleteTaskFromCloud(id); // Only delete the specific task!
 };
 
 // Archive completed tasks
 export const archiveCompletedTasks = () => {
   const tasks = getAllTasks();
   let archivedCount = 0;
-  const updatedTasks = tasks.map(t => {
+  
+  tasksCache = tasks.map(t => {
     if (t && t.status === 'completed' && !t.archived) {
       archivedCount++;
-      return { ...t, archived: true, archivedAt: new Date().toISOString() };
+      const updated = { ...t, archived: true, archivedAt: new Date().toISOString() };
+      syncSingleTaskToCloud(updated); // Sync individually
+      return updated;
     }
     return t;
   });
-  syncToCloud(updatedTasks);
+  
+  if (archivedCount > 0) {
+    saveLocalCache(tasksCache);
+  }
   return archivedCount;
 };
 
